@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpen, Calculator, Lightbulb, Target, CheckCircle, XCircle, RotateCcw, Brain, Layers } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, BookOpen, Calculator, Lightbulb, Target, CheckCircle, XCircle, RotateCcw, Brain, Layers, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { MODULES, CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { useProgress } from '@/hooks/useProgress';
 
 type Step = 'theory' | 'formula' | 'example' | 'quiz' | 'flashcard' | 'task';
 
@@ -130,15 +131,22 @@ const MODULE_FLASHCARDS: Record<string, { front: string; back: string; formula?:
   ]
 };
 
-export function TaskDetailPage() {
+interface TaskDetailPageProps {
+  userTelegram?: string;
+}
+
+export function TaskDetailPage({ userTelegram }: TaskDetailPageProps) {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const module = MODULES.find((m) => m.slug === slug);
   const { toast } = useToast();
+  const { completeModule, isModuleCompleted, updateStep, getModuleStep } = useProgress(userTelegram || null);
 
   const [currentStep, setCurrentStep] = useState<Step>('theory');
   const [answer, setAnswer] = useState('');
   const [showHint, setShowHint] = useState(false);
   const [result, setResult] = useState<'correct' | 'incorrect' | null>(null);
+  const [moduleCompleted, setModuleCompleted] = useState(false);
   
   // Quiz state
   const [quizIndex, setQuizIndex] = useState(0);
@@ -148,6 +156,12 @@ export function TaskDetailPage() {
   // Flashcard state
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+
+  useEffect(() => {
+    if (slug) {
+      setModuleCompleted(isModuleCompleted(slug));
+    }
+  }, [slug, isModuleCompleted]);
 
   if (!module) {
     return (
@@ -173,6 +187,7 @@ export function TaskDetailPage() {
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < STEPS.length) {
       setCurrentStep(STEPS[nextIndex].id);
+      updateStep(slug!, nextIndex + 1);
       // Reset states for new step
       if (STEPS[nextIndex].id === 'quiz') {
         setQuizIndex(0);
@@ -193,7 +208,7 @@ export function TaskDetailPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!module.task || !answer) return;
 
     const userAnswer = parseFloat(answer.replace(',', '.'));
@@ -202,10 +217,19 @@ export function TaskDetailPage() {
 
     if (Math.abs(userAnswer - correctAnswer) <= tolerance) {
       setResult('correct');
-      toast({
-        title: 'Отлично! 🎉',
-        description: '+50 коинов за правильный ответ',
-      });
+      
+      // Complete module and earn coins
+      if (!moduleCompleted) {
+        const success = await completeModule(slug!);
+        if (success) {
+          setModuleCompleted(true);
+        }
+      } else {
+        toast({
+          title: 'Правильно! ✅',
+          description: 'Модуль уже был пройден ранее',
+        });
+      }
     } else {
       setResult('incorrect');
     }
@@ -250,6 +274,15 @@ export function TaskDetailPage() {
     }
   };
 
+  const goToNextModule = () => {
+    const currentIndex = MODULES.findIndex(m => m.slug === slug);
+    if (currentIndex < MODULES.length - 1) {
+      navigate(`/task/${MODULES[currentIndex + 1].slug}`);
+    } else {
+      navigate('/tasks');
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto pb-8">
       {/* Header */}
@@ -269,6 +302,11 @@ export function TaskDetailPage() {
           <span className="text-sm text-muted-foreground">
             Модуль {module.id}
           </span>
+          {moduleCompleted && (
+            <span className="px-2 py-0.5 rounded-full bg-success/10 text-xs font-medium text-success">
+              ✓ Пройден
+            </span>
+          )}
         </div>
 
         <h1 className="heading-lg text-foreground">{module.title}</h1>
@@ -419,7 +457,7 @@ export function TaskDetailPage() {
         )}
 
         {/* Quiz Step */}
-        {currentStep === 'quiz' && (
+        {currentStep === 'quiz' && quizzes.length > 0 && currentQuiz && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -428,141 +466,111 @@ export function TaskDetailPage() {
                 </div>
                 <h2 className="font-display text-lg font-bold text-foreground">Квиз</h2>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {quizIndex + 1}/{quizzes.length}
+              <span className="text-sm text-muted-foreground">
+                {quizIndex + 1} / {quizzes.length}
               </span>
             </div>
 
-            {quizzes.length > 0 && currentQuiz ? (
-              <>
-                <p className="text-foreground font-medium">{currentQuiz.question}</p>
+            <p className="text-foreground font-medium">{currentQuiz.question}</p>
 
-                <div className="space-y-2">
-                  {currentQuiz.options.map((option, i) => {
-                    const isSelected = quizAnswer === i;
-                    const isCorrect = i === currentQuiz.correctIndex;
-                    const showResult = quizAnswer !== null;
+            <div className="grid gap-2">
+              {currentQuiz.options.map((option, idx) => {
+                const isSelected = quizAnswer === idx;
+                const isCorrect = idx === currentQuiz.correctIndex;
+                const showResult = quizAnswer !== null;
 
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => handleQuizAnswer(i)}
-                        disabled={quizAnswer !== null}
-                        className={cn(
-                          'w-full p-3 rounded-xl text-left transition-all border text-sm',
-                          !showResult && 'hover:border-primary/50 bg-card border-border',
-                          showResult && isCorrect && 'border-success bg-success/10',
-                          showResult && isSelected && !isCorrect && 'border-destructive bg-destructive/10'
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold',
-                            showResult && isCorrect ? 'bg-success text-white' :
-                            showResult && isSelected ? 'bg-destructive text-white' :
-                            'bg-secondary text-muted-foreground'
-                          )}>
-                            {showResult && isCorrect ? <CheckCircle className="h-4 w-4" /> :
-                             showResult && isSelected ? <XCircle className="h-4 w-4" /> :
-                             String.fromCharCode(65 + i)}
-                          </div>
-                          <span>{option}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleQuizAnswer(idx)}
+                    disabled={showResult}
+                    className={cn(
+                      'p-4 rounded-xl text-left transition-all border',
+                      showResult && isCorrect && 'bg-success/10 border-success text-success',
+                      showResult && isSelected && !isCorrect && 'bg-destructive/10 border-destructive text-destructive',
+                      !showResult && 'bg-secondary border-transparent hover:border-primary/30',
+                      !showResult && 'text-foreground'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
+                        showResult && isCorrect && 'bg-success text-success-foreground',
+                        showResult && isSelected && !isCorrect && 'bg-destructive text-destructive-foreground',
+                        !showResult && 'bg-muted text-muted-foreground'
+                      )}>
+                        {showResult && isCorrect ? '✓' : showResult && isSelected ? '✗' : String.fromCharCode(65 + idx)}
+                      </div>
+                      <span className="text-sm">{option}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
-                {quizAnswer !== null && (
-                  <div className={cn(
-                    'p-3 rounded-xl text-sm',
-                    quizAnswer === currentQuiz.correctIndex 
-                      ? 'bg-success/10 border border-success/20 text-success'
-                      : 'bg-warning/10 border border-warning/20 text-warning'
-                  )}>
-                    <p className="font-medium mb-1">
-                      {quizAnswer === currentQuiz.correctIndex ? '✓ Правильно!' : '✗ Неверно'}
-                    </p>
-                    <p className="text-xs opacity-80">{currentQuiz.explanation}</p>
-                  </div>
-                )}
-
-                {quizAnswer !== null && (
-                  <Button onClick={nextQuizQuestion} className="w-full">
-                    {quizIndex < quizzes.length - 1 ? 'Следующий вопрос' : 'Далее →'}
-                  </Button>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Brain className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Квиз для этого модуля в разработке</p>
-                <Button onClick={goNext} className="mt-4">Пропустить</Button>
+            {quizAnswer !== null && (
+              <div className={cn(
+                'p-4 rounded-xl',
+                quizAnswer === currentQuiz.correctIndex ? 'bg-success/10' : 'bg-muted'
+              )}>
+                <p className="text-sm text-foreground">{currentQuiz.explanation}</p>
               </div>
+            )}
+
+            {quizAnswer !== null && (
+              <Button onClick={nextQuizQuestion} className="w-full">
+                {quizIndex < quizzes.length - 1 ? 'Следующий вопрос' : 'Далее'}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
             )}
           </div>
         )}
 
         {/* Flashcard Step */}
-        {currentStep === 'flashcard' && (
+        {currentStep === 'flashcard' && flashcards.length > 0 && currentFlashcard && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-primary/10">
                   <Layers className="h-5 w-5 text-primary" />
                 </div>
-                <h2 className="font-display text-lg font-bold text-foreground">Карточка</h2>
+                <h2 className="font-display text-lg font-bold text-foreground">Флэшкарта</h2>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {flashcardIndex + 1}/{flashcards.length}
+              <span className="text-sm text-muted-foreground">
+                {flashcardIndex + 1} / {flashcards.length}
               </span>
             </div>
 
-            {flashcards.length > 0 && currentFlashcard ? (
-              <>
-                <div 
-                  onClick={() => setFlashcardFlipped(!flashcardFlipped)}
-                  className="cursor-pointer min-h-[200px] p-6 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 flex flex-col items-center justify-center text-center transition-all hover:scale-[1.01]"
-                >
-                  {!flashcardFlipped ? (
-                    <>
-                      <p className="text-2xl font-bold text-primary mb-2">{currentFlashcard.front}</p>
-                      <p className="text-xs text-muted-foreground">Нажми, чтобы перевернуть</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-foreground mb-3">{currentFlashcard.back}</p>
-                      {currentFlashcard.formula && (
-                        <code className="px-3 py-2 rounded-lg bg-primary/20 font-mono text-primary">
-                          {currentFlashcard.formula}
-                        </code>
-                      )}
-                    </>
+            <div
+              onClick={() => setFlashcardFlipped(!flashcardFlipped)}
+              className="min-h-[200px] p-6 rounded-2xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 cursor-pointer transition-all hover:shadow-lg flex flex-col items-center justify-center text-center"
+            >
+              {flashcardFlipped ? (
+                <>
+                  <p className="text-foreground text-sm mb-2">{currentFlashcard.back}</p>
+                  {currentFlashcard.formula && (
+                    <p className="font-mono text-primary font-bold">{currentFlashcard.formula}</p>
                   )}
-                </div>
+                </>
+              ) : (
+                <p className="text-xl font-bold text-foreground">{currentFlashcard.front}</p>
+              )}
+            </div>
 
-                <div className="flex items-center justify-between">
-                  <Button 
-                    variant="ghost" 
-                    onClick={prevFlashcard}
-                    disabled={flashcardIndex === 0}
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Назад
-                  </Button>
-                  <Button onClick={nextFlashcard}>
-                    {flashcardIndex < flashcards.length - 1 ? 'Далее' : 'Завершить'}
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Layers className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                <p>Карточки для этого модуля в разработке</p>
-                <Button onClick={goNext} className="mt-4">Пропустить</Button>
-              </div>
-            )}
+            <p className="text-xs text-center text-muted-foreground">
+              Нажмите на карточку, чтобы перевернуть
+            </p>
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={prevFlashcard} disabled={flashcardIndex === 0} className="flex-1">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Назад
+              </Button>
+              <Button onClick={nextFlashcard} className="flex-1">
+                {flashcardIndex < flashcards.length - 1 ? 'Далее' : 'К задаче'}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
           </div>
         )}
 
@@ -577,113 +585,125 @@ export function TaskDetailPage() {
             </div>
 
             <div className="p-4 rounded-xl bg-secondary">
-              <p className="text-foreground">{module.task.question}</p>
+              <p className="text-foreground text-sm font-medium">{module.task.question}</p>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <Input
-                  type="text"
-                  placeholder="Введи ответ..."
-                  value={answer}
-                  onChange={(e) => {
-                    setAnswer(e.target.value);
-                    setResult(null);
-                  }}
-                  className={cn(
-                    'h-12 text-lg font-semibold flex-1',
-                    result === 'correct' && 'border-success bg-success/5',
-                    result === 'incorrect' && 'border-destructive bg-destructive/5'
-                  )}
-                  disabled={result === 'correct'}
-                />
-                {result === 'correct' ? (
-                  <Button size="lg" className="h-12 bg-success hover:bg-success/90" disabled>
-                    <CheckCircle className="h-5 w-5" />
+            {result === 'correct' ? (
+              <div className="space-y-4">
+                <div className="p-6 rounded-2xl bg-success/10 border border-success/20 text-center">
+                  <PartyPopper className="h-12 w-12 text-success mx-auto mb-3" />
+                  <p className="text-xl font-bold text-success mb-1">Отлично!</p>
+                  <p className="text-sm text-success/80">
+                    {moduleCompleted ? 'Модуль завершён! +50 коинов 🎉' : 'Правильный ответ!'}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={resetTask} className="flex-1">
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Ещё раз
                   </Button>
-                ) : (
-                  <Button size="lg" className="h-12" onClick={handleSubmit} disabled={!answer}>
+                  <Button onClick={goToNextModule} className="flex-1">
+                    Следующий модуль
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <Input
+                      type="text"
+                      placeholder="Введи ответ..."
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      className={cn(
+                        'h-14 text-lg font-mono',
+                        result === 'incorrect' && 'border-destructive'
+                      )}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                    />
+                  </div>
+                  <Button 
+                    variant="hero" 
+                    className="h-14 px-6"
+                    onClick={handleSubmit}
+                    disabled={!answer}
+                  >
                     Проверить
                   </Button>
+                </div>
+
+                {result === 'incorrect' && (
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                    <XCircle className="h-5 w-5 text-destructive shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-destructive">Неверно</p>
+                      <p className="text-xs text-destructive/80">Попробуй ещё раз или воспользуйся подсказкой</p>
+                    </div>
+                  </div>
                 )}
-              </div>
 
-              {result === 'correct' && (
-                <div className="p-3 rounded-xl bg-success/10 border border-success/20 flex items-center gap-3">
-                  <CheckCircle className="h-5 w-5 text-success shrink-0" />
-                  <div>
-                    <p className="font-medium text-success text-sm">Правильно!</p>
-                    <p className="text-xs text-success/80">+50 коинов добавлено</p>
+                {!showHint ? (
+                  <button
+                    onClick={() => setShowHint(true)}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    💡 Показать подсказку
+                  </button>
+                ) : (
+                  <div className="p-4 rounded-xl bg-accent/10 border border-accent/20">
+                    <p className="text-sm text-foreground">{module.task.hint}</p>
                   </div>
-                </div>
-              )}
-
-              {result === 'incorrect' && (
-                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center gap-3">
-                  <XCircle className="h-5 w-5 text-destructive shrink-0" />
-                  <div className="flex-1">
-                    <p className="font-medium text-destructive text-sm">Неверно</p>
-                    <p className="text-xs text-destructive/80">Попробуй ещё раз</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={resetTask}>
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-
-              {result !== 'correct' && (
-                <button
-                  onClick={() => setShowHint(!showHint)}
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <Lightbulb className="h-4 w-4" />
-                  {showHint ? 'Скрыть подсказку' : 'Показать подсказку'}
-                </button>
-              )}
-
-              {showHint && (
-                <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
-                  <p className="text-xs text-foreground">💡 {module.task.hint}</p>
-                </div>
-              )}
-            </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+        {/* Skip steps if no content */}
+        {currentStep === 'quiz' && quizzes.length === 0 && (
+          <div className="text-center py-8">
+            <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground mb-4">Квиз для этого модуля в разработке</p>
+            <Button onClick={goNext}>
+              Пропустить
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        )}
+
+        {currentStep === 'flashcard' && flashcards.length === 0 && (
+          <div className="text-center py-8">
+            <Layers className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground mb-4">Флэшкарты для этого модуля в разработке</p>
+            <Button onClick={goNext}>
+              Пропустить
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      {currentStep !== 'task' && !(currentStep === 'quiz' && quizAnswer === null && quizzes.length > 0) && 
+       !(currentStep === 'flashcard' && flashcards.length > 0) && (
+        <div className="flex gap-3 mt-6">
           <Button
-            variant="ghost"
-            size="sm"
+            variant="outline"
             onClick={goPrev}
             disabled={currentStepIndex === 0}
-            className="gap-2"
+            className="flex-1"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Назад
           </Button>
-
-          {currentStep !== 'quiz' && currentStep !== 'flashcard' && (
-            currentStepIndex < STEPS.length - 1 ? (
-              <Button size="sm" onClick={goNext} className="gap-2">
-                Далее
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : result === 'correct' ? (
-              <Button asChild size="sm" className="gap-2 bg-success hover:bg-success/90">
-                <Link to="/tasks">
-                  Завершить
-                  <CheckCircle className="h-4 w-4" />
-                </Link>
-              </Button>
-            ) : (
-              <Button size="sm" disabled className="gap-2">
-                Реши задачу
-              </Button>
-            )
-          )}
+          <Button onClick={goNext} className="flex-1">
+            Далее
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }

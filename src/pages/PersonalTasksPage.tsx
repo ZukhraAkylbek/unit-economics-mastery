@@ -363,7 +363,9 @@ export function PersonalTasksPage() {
 
           {aiFeedback ? (
             <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <p className="text-sm text-foreground whitespace-pre-line">{aiFeedback}</p>
+              <div className="text-sm text-foreground whitespace-pre-line leading-relaxed">
+                {aiFeedback.replace(/\*\*/g, '').replace(/\*/g, '')}
+              </div>
             </div>
           ) : (
             <p className="text-muted-foreground text-sm">

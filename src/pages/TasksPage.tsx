@@ -1,24 +1,29 @@
-import { useState } from 'react';
-import { Search, Check, Brain, Layers, Briefcase } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Brain, Layers, Briefcase } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { ModuleCard } from '@/components/cards/ModuleCard';
 import { MODULES, LEVELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { useProgress } from '@/hooks/useProgress';
 
 const FILTER_OPTIONS = ['Все', 'Не пройдено', 'Пройдено'];
 
-export function TasksPage() {
+interface TasksPageProps {
+  userTelegram?: string;
+}
+
+export function TasksPage({ userTelegram }: TasksPageProps) {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('Все');
-  const [completedModules] = useState<number[]>([]); // Will come from backend later
+  const { completedModuleIds, loading } = useProgress(userTelegram || null);
 
   const filteredModules = MODULES.filter((module) => {
     const matchesSearch =
       module.title.toLowerCase().includes(search.toLowerCase()) ||
       module.description.toLowerCase().includes(search.toLowerCase());
     
-    const isCompleted = completedModules.includes(module.id);
+    const isCompleted = completedModuleIds.includes(module.id);
     
     if (activeFilter === 'Пройдено' && !isCompleted) return false;
     if (activeFilter === 'Не пройдено' && isCompleted) return false;
@@ -110,7 +115,7 @@ export function TasksPage() {
                     key={module.id}
                     module={module}
                     index={index}
-                    isCompleted={completedModules.includes(module.id)}
+                    isCompleted={completedModuleIds.includes(module.id)}
                   />
                 ))}
               </div>
