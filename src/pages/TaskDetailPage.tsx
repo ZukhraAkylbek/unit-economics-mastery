@@ -157,11 +157,22 @@ export function TaskDetailPage({ userTelegram }: TaskDetailPageProps) {
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
 
+  // Reset all state when navigating to a new module
   useEffect(() => {
     if (slug) {
       setModuleCompleted(isModuleCompleted(slug));
+      // Reset to theory for new module
+      setCurrentStep('theory');
+      setAnswer('');
+      setShowHint(false);
+      setResult(null);
+      setQuizIndex(0);
+      setQuizAnswer(null);
+      setQuizCorrect(0);
+      setFlashcardIndex(0);
+      setFlashcardFlipped(false);
     }
-  }, [slug, isModuleCompleted]);
+  }, [slug]);
 
   if (!module) {
     return (
