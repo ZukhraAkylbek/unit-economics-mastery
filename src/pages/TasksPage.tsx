@@ -1,26 +1,28 @@
 import { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { Search, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { ModuleCard } from '@/components/cards/ModuleCard';
-import { MODULES, LEVELS, CATEGORIES } from '@/lib/constants';
+import { MODULES, LEVELS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
-const CATEGORY_FILTERS = ['ALL', ...Object.keys(CATEGORIES).map((k) => CATEGORIES[k as keyof typeof CATEGORIES].label)];
+const FILTER_OPTIONS = ['Все', 'Не пройдено', 'Пройдено'];
 
 export function TasksPage() {
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('ALL');
+  const [activeFilter, setActiveFilter] = useState('Все');
+  const [completedModules] = useState<number[]>([]); // Will come from backend later
 
   const filteredModules = MODULES.filter((module) => {
     const matchesSearch =
       module.title.toLowerCase().includes(search.toLowerCase()) ||
       module.description.toLowerCase().includes(search.toLowerCase());
     
-    const matchesCategory =
-      activeCategory === 'ALL' ||
-      CATEGORIES[module.category].label === activeCategory;
+    const isCompleted = completedModules.includes(module.id);
+    
+    if (activeFilter === 'Пройдено' && !isCompleted) return false;
+    if (activeFilter === 'Не пройдено' && isCompleted) return false;
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const modulesByLevel = {
@@ -30,60 +32,75 @@ export function TasksPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 pb-4">
+      {/* Header */}
+      <div className="opacity-0 animate-fade-in">
+        <h1 className="heading-lg text-foreground mb-1">Задачи</h1>
+        <p className="text-muted-foreground">Пошаговое обучение unit-экономике</p>
+      </div>
+
       {/* Search */}
-      <div className="relative">
+      <div className="relative opacity-0 animate-fade-in stagger-1">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
           placeholder="Поиск по задачам..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-14 pl-12 rounded-2xl bg-card border-border text-foreground"
+          className="h-12 pl-12 rounded-xl bg-card border-border"
         />
       </div>
 
-      {/* Category Filter */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Filter className="h-4 w-4" />
-          <span className="text-sm">CATEGORY:</span>
-        </div>
-        {CATEGORY_FILTERS.map((cat) => (
-          <Button
-            key={cat}
-            variant={activeCategory === cat ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setActiveCategory(cat)}
-            className="rounded-full"
+      {/* Filter Pills */}
+      <div className="flex gap-2 opacity-0 animate-fade-in stagger-2">
+        {FILTER_OPTIONS.map((filter) => (
+          <button
+            key={filter}
+            onClick={() => setActiveFilter(filter)}
+            className={cn(
+              'px-4 py-2 rounded-full text-sm font-medium transition-all',
+              activeFilter === filter
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            )}
           >
-            {cat}
-          </Button>
+            {filter}
+          </button>
         ))}
       </div>
 
       {/* Modules by Level */}
-      {Object.entries(modulesByLevel).map(([level, modules]) => {
-        if (modules.length === 0) return null;
-        const levelNum = Number(level) as 1 | 2 | 3;
-        const levelInfo = LEVELS[levelNum];
+      <div className="space-y-8 opacity-0 animate-fade-in stagger-3">
+        {Object.entries(modulesByLevel).map(([level, modules]) => {
+          if (modules.length === 0) return null;
+          const levelNum = Number(level) as 1 | 2 | 3;
+          const levelInfo = LEVELS[levelNum];
 
-        return (
-          <section key={level}>
-            <h2 className="font-display text-xl font-bold text-primary italic mb-6">
-              LEVEL {level}: {levelInfo.name} ({levelInfo.label})
-            </h2>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {modules.map((module) => (
-                <ModuleCard
-                  key={module.id}
-                  module={module}
-                  isActive={module.id === 2}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+          return (
+            <section key={level}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-2xl">{levelInfo.emoji}</span>
+                <div>
+                  <h2 className="font-display text-lg font-bold text-foreground">
+                    {levelInfo.name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">{levelInfo.label}</p>
+                </div>
+              </div>
+              
+              <div className="grid gap-4 sm:grid-cols-2">
+                {modules.map((module, index) => (
+                  <ModuleCard
+                    key={module.id}
+                    module={module}
+                    index={index}
+                    isCompleted={completedModules.includes(module.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
