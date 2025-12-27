@@ -224,10 +224,14 @@ export function TheoryPage() {
 
         {/* Next Button */}
         {revealedStep < CASE_STUDY.length && (
-          <div className="mt-6 text-center">
-            <Button onClick={revealNext} size="lg" className="gap-2">
+          <div className="mt-8 flex justify-center">
+            <Button 
+              onClick={revealNext} 
+              size="lg" 
+              className="gap-2 h-14 px-10 text-base font-bold shadow-lg hover:scale-105 transition-transform"
+            >
               Далее
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-5 w-5" />
             </Button>
           </div>
         )}
