@@ -75,8 +75,8 @@ const App = () => {
               }
             >
               <Route path="/office" element={<OfficePage user={user!} />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/task/:slug" element={<TaskDetailPage />} />
+              <Route path="/tasks" element={<TasksPage userTelegram={user?.telegram} />} />
+              <Route path="/task/:slug" element={<TaskDetailPage userTelegram={user?.telegram} />} />
               <Route path="/theory" element={<TheoryPage />} />
               <Route path="/toolkit" element={<ToolkitPage />} />
               <Route path="/audit" element={<AuditPage />} />

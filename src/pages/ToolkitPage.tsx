@@ -135,11 +135,24 @@ function StandardCalculator() {
   );
 }
 
+// Currency exchange rates
+const RATES = {
+  USD: { EUR: 0.85, RUB: 77.69, KGS: 89.00 },
+  EUR: { USD: 1.17, RUB: 91.21, KGS: 104.50 },
+  RUB: { USD: 0.0129, EUR: 0.0110, KGS: 1.11 },
+  KGS: { USD: 0.0112, EUR: 0.0096, RUB: 0.90 }
+};
+
 function UnitLogicCalculator() {
   const [cac, setCac] = useState(20);
   const [arpu, setArpu] = useState(15);
   const [churn, setChurn] = useState(10);
-  const [currency, setCurrency] = useState<'$' | '€' | '₽' | '¢'>('$');
+  const [currency, setCurrency] = useState<'$' | '€' | '₽' | 'с'>('$');
+  
+  // Currency converter state
+  const [amount, setAmount] = useState('100');
+  const [fromCurrency, setFromCurrency] = useState<'USD' | 'EUR' | 'RUB' | 'KGS'>('USD');
+  const [showConverter, setShowConverter] = useState(false);
 
   const ltv = churn > 0 ? arpu / (churn / 100) : 0;
   const ratio = cac > 0 ? ltv / cac : 0;
@@ -152,13 +165,23 @@ function UnitLogicCalculator() {
   };
 
   const health = getHealthStatus();
+  
+  const convertedAmounts = () => {
+    const val = parseFloat(amount) || 0;
+    const rates = RATES[fromCurrency];
+    return Object.entries(rates).map(([curr, rate]) => ({
+      currency: curr,
+      symbol: curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'RUB' ? '₽' : 'сом',
+      value: (val * rate).toFixed(2)
+    }));
+  };
 
   return (
     <div className="card-elevated p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display text-xl font-bold">UNIT CONSTRUCTOR</h2>
         <div className="flex gap-1">
-          {(['$', '€', '₽', '¢'] as const).map((c) => (
+          {(['$', '€', '₽', 'с'] as const).map((c) => (
             <button
               key={c}
               onClick={() => setCurrency(c)}
@@ -172,6 +195,47 @@ function UnitLogicCalculator() {
           ))}
         </div>
       </div>
+
+      {/* Currency Converter Toggle */}
+      <button 
+        onClick={() => setShowConverter(!showConverter)}
+        className="w-full mb-4 p-3 rounded-xl bg-muted/50 text-sm font-medium text-foreground hover:bg-muted transition-all flex items-center justify-between"
+      >
+        <span>💱 Конвертер валют</span>
+        <span className="text-muted-foreground">{showConverter ? '▲' : '▼'}</span>
+      </button>
+
+      {showConverter && (
+        <div className="mb-6 p-4 rounded-xl bg-muted/30 border border-border space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground"
+              placeholder="Сумма"
+            />
+            <select
+              value={fromCurrency}
+              onChange={(e) => setFromCurrency(e.target.value as any)}
+              className="px-3 py-2 rounded-lg bg-background border border-border text-foreground"
+            >
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+              <option value="RUB">₽ RUB</option>
+              <option value="KGS">сом KGS</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {convertedAmounts().map(({ currency: curr, symbol, value }) => (
+              <div key={curr} className="p-2 rounded-lg bg-background text-center">
+                <p className="text-xs text-muted-foreground">{curr}</p>
+                <p className="font-bold text-foreground">{symbol}{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-8">
         {/* CAC Slider */}
