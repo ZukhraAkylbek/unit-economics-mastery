@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Search, Check } from 'lucide-react';
+import { Search, Check, Brain, Layers, Briefcase } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { ModuleCard } from '@/components/cards/ModuleCard';
 import { MODULES, LEVELS } from '@/lib/constants';
@@ -37,6 +38,22 @@ export function TasksPage() {
       <div className="opacity-0 animate-fade-in">
         <h1 className="heading-lg text-foreground mb-1">Задачи</h1>
         <p className="text-muted-foreground">Пошаговое обучение unit-экономике</p>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-3 gap-3 opacity-0 animate-fade-in stagger-1">
+        <Link to="/quiz" className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center hover:bg-primary/20 transition-all">
+          <Brain className="h-6 w-6 text-primary mx-auto mb-2" />
+          <p className="text-sm font-medium text-foreground">Квиз</p>
+        </Link>
+        <Link to="/flashcards" className="p-4 rounded-xl bg-card border border-border text-center hover:border-primary/30 transition-all">
+          <Layers className="h-6 w-6 text-primary mx-auto mb-2" />
+          <p className="text-sm font-medium text-foreground">Флэшкарты</p>
+        </Link>
+        <Link to="/personal" className="p-4 rounded-xl bg-card border border-border text-center hover:border-primary/30 transition-all">
+          <Briefcase className="h-6 w-6 text-primary mx-auto mb-2" />
+          <p className="text-sm font-medium text-foreground">Мой проект</p>
+        </Link>
       </div>
 
       {/* Search */}

@@ -13,6 +13,9 @@ import { ToolkitPage } from "./pages/ToolkitPage";
 import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { AuditPage } from "./pages/AuditPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { QuizPage } from "./pages/QuizPage";
+import { FlashcardsPage } from "./pages/FlashcardsPage";
+import { PersonalTasksPage } from "./pages/PersonalTasksPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -76,6 +79,9 @@ const App = () => {
               <Route path="/toolkit" element={<ToolkitPage />} />
               <Route path="/audit" element={<AuditPage />} />
               <Route path="/profile" element={<ProfilePage user={user!} />} />
+              <Route path="/quiz" element={<QuizPage />} />
+              <Route path="/flashcards" element={<FlashcardsPage />} />
+              <Route path="/personal" element={<PersonalTasksPage />} />
             </Route>
 
             {/* 404 */}
