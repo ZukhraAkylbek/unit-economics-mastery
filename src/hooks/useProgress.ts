@@ -27,14 +27,37 @@ export function useProgress(userTelegram: string | null) {
 
     const fetchProgress = async () => {
       try {
-        // Get student ID
-        const { data: studentData, error: studentError } = await supabase
+        // Normalize telegram (remove @ prefix if present)
+        const normalizedTelegram = userTelegram.startsWith('@') 
+          ? userTelegram.slice(1) 
+          : userTelegram;
+
+        // Get student ID - try both with and without @
+        let studentData = null;
+        let studentError = null;
+
+        // First try without @
+        const result1 = await supabase
           .from('students')
           .select('id')
-          .eq('telegram', userTelegram)
+          .eq('telegram', normalizedTelegram)
           .single();
 
-        if (studentError || !studentData) {
+        if (result1.data) {
+          studentData = result1.data;
+        } else {
+          // Try with @ prefix
+          const result2 = await supabase
+            .from('students')
+            .select('id')
+            .eq('telegram', `@${normalizedTelegram}`)
+            .single();
+          
+          studentData = result2.data;
+          studentError = result2.error;
+        }
+
+        if (!studentData) {
           console.error('Student not found:', studentError);
           setLoading(false);
           return;
