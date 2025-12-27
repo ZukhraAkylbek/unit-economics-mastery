@@ -597,16 +597,10 @@ export function TaskDetailPage({ userTelegram }: TaskDetailPageProps) {
                     {moduleCompleted ? 'Модуль завершён! +50 коинов 🎉' : 'Правильный ответ!'}
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={resetTask} className="flex-1">
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Ещё раз
-                  </Button>
-                  <Button onClick={goToNextModule} className="flex-1">
-                    Следующий модуль
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </div>
+                <Button variant="hero" onClick={goToNextModule} className="w-full">
+                  Перейти к следующему модулю
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
               </div>
             ) : (
               <>

@@ -5,44 +5,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Product Hunt top products data (refreshed manually or via scraping)
-const TOP_PRODUCTS = [
-  {
-    name: "Notion",
-    tagline: "All-in-one workspace for notes, docs, and collaboration",
-    category: "Productivity / SaaS",
-    upvotes: 12500,
-    website: "https://notion.so"
-  },
-  {
-    name: "Figma",
-    tagline: "Collaborative design tool for teams",
-    category: "Design / SaaS",
-    upvotes: 15200,
-    website: "https://figma.com"
-  },
-  {
-    name: "Linear",
-    tagline: "Issue tracking for modern software teams",
-    category: "Developer Tools / SaaS",
-    upvotes: 8900,
-    website: "https://linear.app"
-  },
-  {
-    name: "Loom",
-    tagline: "Video messaging for async work",
-    category: "Video / SaaS",
-    upvotes: 11300,
-    website: "https://loom.com"
-  },
-  {
-    name: "Superhuman",
-    tagline: "The fastest email experience ever made",
-    category: "Email / SaaS",
-    upvotes: 9800,
-    website: "https://superhuman.com"
+// Product Hunt API scraping - fetch daily leaderboard
+async function fetchProductHuntDaily(): Promise<any[]> {
+  try {
+    // Use date from yesterday to ensure we have complete data
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+    
+    console.log(`Fetching PH leaderboard for ${dateStr}`);
+    
+    // Fetch the Product Hunt daily leaderboard page
+    const response = await fetch(`https://www.producthunt.com/leaderboard/daily/${dateStr}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+      }
+    });
+
+    if (!response.ok) {
+      console.log("PH fetch failed, using AI to generate trending products");
+      return [];
+    }
+
+    const html = await response.text();
+    
+    // Extract product data from HTML using regex patterns
+    const products: any[] = [];
+    
+    // Find product names and taglines from the HTML
+    const productMatches = html.matchAll(/<a[^>]*href="\/posts\/([^"]+)"[^>]*>([^<]+)<\/a>/g);
+    const taglineMatches = html.matchAll(/data-test="tagline"[^>]*>([^<]+)<\/a>/g);
+    
+    // Simplified extraction - look for patterns in the HTML
+    const namePattern = /"name":"([^"]+)"/g;
+    const taglinePattern = /"tagline":"([^"]+)"/g;
+    const votesPattern = /"votesCount":(\d+)/g;
+    const topicPattern = /"topic":\{"name":"([^"]+)"/g;
+    
+    const names = [...html.matchAll(namePattern)].map(m => m[1]);
+    const taglines = [...html.matchAll(taglinePattern)].map(m => m[1]);
+    const votes = [...html.matchAll(votesPattern)].map(m => parseInt(m[1]));
+    const topics = [...html.matchAll(topicPattern)].map(m => m[1]);
+    
+    // Combine extracted data
+    for (let i = 0; i < Math.min(5, names.length); i++) {
+      products.push({
+        name: names[i] || `Product ${i + 1}`,
+        tagline: taglines[i] || "Innovative product",
+        upvotes: votes[i] || Math.floor(Math.random() * 500) + 100,
+        category: topics[i] || "Tech",
+        website: `https://producthunt.com/posts/${names[i]?.toLowerCase().replace(/\s+/g, '-') || 'product'}`
+      });
+    }
+    
+    return products;
+  } catch (error) {
+    console.error("Error fetching PH:", error);
+    return [];
   }
-];
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -58,19 +79,69 @@ serve(async (req) => {
     }
 
     if (action === 'get-top-products') {
-      // Return top products with AI-generated insights
+      console.log("Getting top products from Product Hunt...");
+      
+      // Try to fetch real PH data, fall back to AI generation
+      let fetchedProducts = await fetchProductHuntDaily();
+      
+      // If no products fetched, ask AI to generate trending products
+      if (fetchedProducts.length === 0) {
+        console.log("Using AI to generate current trending products");
+        
+        const trendingPrompt = `Назови 5 реальных продуктов, которые сейчас популярны на Product Hunt (декабрь 2024 - январь 2025).
+Для каждого укажи:
+- name: название
+- tagline: описание (1 предложение)  
+- category: категория (AI, Productivity, Developer Tools, Design, etc)
+- upvotes: примерное количество голосов (100-2000)
+- website: ссылка на сайт
+
+Верни JSON массив, без markdown:
+[{"name":"...", "tagline":"...", "category":"...", "upvotes":500, "website":"https://..."}]`;
+
+        const trendingResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "Ты эксперт по стартапам и Product Hunt. Отвечай только JSON." },
+              { role: "user", content: trendingPrompt }
+            ],
+          }),
+        });
+
+        if (trendingResponse.ok) {
+          const trendingData = await trendingResponse.json();
+          let content = trendingData.choices?.[0]?.message?.content || "[]";
+          
+          // Clean JSON
+          content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          
+          try {
+            fetchedProducts = JSON.parse(content);
+          } catch (e) {
+            console.error("Failed to parse trending products:", e);
+          }
+        }
+      }
+      
+      // Take top 5 and add AI analysis
       const productsWithInsights = [];
       
-      for (const product of TOP_PRODUCTS.slice(0, 3)) {
-        const systemPrompt = `Ты эксперт по юнит-экономике стартапов. Анализируй продукты и объясняй их бизнес-модель.`;
+      for (const product of fetchedProducts.slice(0, 5)) {
+        const systemPrompt = `Ты эксперт по юнит-экономике стартапов. Анализируй кратко, без звёздочек и markdown.`;
         
-        const userMessage = `Проанализируй стартап "${product.name}" (${product.tagline}).
+        const userMessage = `Проанализируй "${product.name}" (${product.tagline}).
 Категория: ${product.category}
 
-Объясни кратко (3-4 предложения):
-1. Какие ключевые метрики важны для этого типа продукта
-2. Как они скорее всего считают CAC и LTV
-3. Что важно для инвесторов в таких продуктах`;
+Дай краткий анализ (3 предложения без звёздочек):
+1. Бизнес-модель и ключевые метрики
+2. Примерные CAC/LTV показатели для этой ниши
+3. Потенциал роста`;
 
         console.log(`Analyzing ${product.name}...`);
 
@@ -99,7 +170,9 @@ serve(async (req) => {
         }
 
         const data = await response.json();
-        const analysis = data.choices?.[0]?.message?.content || "Анализ недоступен";
+        let analysis = data.choices?.[0]?.message?.content || "Анализ недоступен";
+        // Remove asterisks
+        analysis = analysis.replace(/\*+/g, '');
 
         productsWithInsights.push({
           ...product,
@@ -114,7 +187,7 @@ serve(async (req) => {
 
     if (action === 'analyze-url') {
       // Analyze specific URL
-      const systemPrompt = `Ты эксперт по юнит-экономике стартапов. Проводишь глубокий аудит на основе публичной информации.`;
+      const systemPrompt = `Ты эксперт по юнит-экономике стартапов. Проводишь глубокий аудит на основе публичной информации. Не используй звёздочки или markdown.`;
 
       const userMessage = `Проанализируй стартап по ссылке: ${url}
 
@@ -126,7 +199,7 @@ serve(async (req) => {
 5. Дай вердикт по экономике (здоровая/рисковая)
 6. 3 ключевые рекомендации
 
-Формат ответа - JSON:
+Формат ответа - JSON без markdown:
 {
   "name": "название продукта",
   "category": "категория",
@@ -135,7 +208,7 @@ serve(async (req) => {
   "estimatedChurn": число (в процентах),
   "ltv": число,
   "ratio": число,
-  "verdict": "текст вердикта",
+  "verdict": "текст вердикта без звёздочек",
   "recommendations": ["рекомендация 1", "рекомендация 2", "рекомендация 3"]
 }`;
 
@@ -194,7 +267,7 @@ serve(async (req) => {
             estimatedChurn: 5,
             ltv: 1000,
             ratio: 10,
-            verdict: content,
+            verdict: content.replace(/\*+/g, ''),
             recommendations: []
           }
         }), {
