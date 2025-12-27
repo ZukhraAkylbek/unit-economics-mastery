@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { STUDENTS } from '@/lib/constants';
 
@@ -12,7 +11,6 @@ interface LoginPageProps {
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [telegram, setTelegram] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +20,6 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const handleCheckAccess = () => {
     setIsLoading(true);
     
-    // Simulate API check
     setTimeout(() => {
       const normalizedTelegram = telegram.startsWith('@') ? telegram : `@${telegram}`;
       const student = STUDENTS.find(
@@ -33,94 +30,82 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         onLogin({ name: name || 'Студент', telegram: normalizedTelegram });
         toast({
           title: 'Добро пожаловать!',
-          description: 'Доступ подтвержден. Начинаем обучение.',
+          description: 'Доступ подтвержден.',
         });
         navigate('/office');
       } else {
         toast({
           title: 'Доступ ограничен',
-          description: 'Ваш аккаунт не найден в списке участников.',
+          description: 'Ваш аккаунт не найден в списке.',
           variant: 'destructive',
         });
       }
       setIsLoading(false);
-    }, 1000);
+    }, 800);
   };
 
   return (
-    <div className="min-h-screen bg-hero flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-card rounded-3xl p-8 shadow-elevated animate-slide-up">
-          {/* Progress */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex gap-2">
-              <div className={`h-1 w-8 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-muted'}`} />
-              <div className={`h-1 w-8 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-muted'}`} />
-            </div>
-            <span className="text-sm text-muted-foreground">PHASE {step} / 2</span>
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-10 opacity-0 animate-fade-in">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-6">
+            <Sparkles className="w-8 h-8 text-primary" />
           </div>
+          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+            MVP Studio
+          </h1>
+          <p className="text-muted-foreground">
+            Unit Economics Master
+          </p>
+        </div>
 
-          {/* Title */}
-          <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold text-foreground">
-              ВХОД В
-            </h1>
-            <h1 className="font-display text-3xl font-bold text-primary italic">
-              MVP STUDIO
-            </h1>
-            <p className="mt-3 text-muted-foreground">
-              Доступ ограничен для участников закрытого потока.
-            </p>
-          </div>
-
-          {/* Form */}
-          <div className="space-y-6">
+        {/* Form */}
+        <div className="card-glass p-8 opacity-0 animate-fade-in stagger-1">
+          <div className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-xs tracking-wider text-muted-foreground">
-                ТВОЕ ИМЯ
-              </Label>
+              <label className="text-sm font-medium text-foreground">
+                Имя
+              </label>
               <Input
-                id="name"
-                placeholder="Напр. Артем"
+                placeholder="Как тебя зовут?"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="h-14 rounded-xl bg-muted border-0 text-foreground placeholder:text-muted-foreground/50"
+                className="h-12 rounded-xl bg-secondary border-0 text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="telegram" className="text-xs tracking-wider text-muted-foreground">
-                TELEGRAM USERNAME
-              </Label>
+              <label className="text-sm font-medium text-foreground">
+                Telegram
+              </label>
               <Input
-                id="telegram"
                 placeholder="@username"
                 value={telegram}
                 onChange={(e) => setTelegram(e.target.value)}
-                className="h-14 rounded-xl bg-muted border-0 text-foreground placeholder:text-muted-foreground/50"
+                className="h-12 rounded-xl bg-secondary border-0 text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
             <Button
-              variant="dark"
-              size="xl"
-              className="w-full"
+              size="lg"
+              className="w-full h-12 rounded-xl font-semibold btn-glow"
               onClick={handleCheckAccess}
               disabled={!telegram || isLoading}
             >
               {isLoading ? (
-                <div className="h-5 w-5 border-2 border-hero-foreground/30 border-t-hero-foreground rounded-full animate-spin" />
+                <div className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               ) : (
                 <>
-                  ПРОВЕРИТЬ ДОСТУП
-                  <ArrowRight className="h-5 w-5" />
+                  Войти
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </>
               )}
             </Button>
           </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Используй username <span className="text-primary">demo</span> для демо-доступа
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Демо-доступ: <span className="text-primary font-medium">demo</span>
           </p>
         </div>
       </div>

@@ -20,9 +20,9 @@ export interface Module {
 }
 
 export const LEVELS = {
-  1: { name: 'НОВИЧОК', label: 'BASE' },
-  2: { name: 'МЕНЕДЖЕР', label: 'MEDIUM' },
-  3: { name: 'СТРАТЕГ', label: 'ADVANCED' },
+  1: { name: 'Новичок', label: 'Основы', emoji: '🌱' },
+  2: { name: 'Менеджер', label: 'Продвинутый', emoji: '📊' },
+  3: { name: 'Стратег', label: 'Эксперт', emoji: '🚀' },
 } as const;
 
 export const CATEGORIES = {
