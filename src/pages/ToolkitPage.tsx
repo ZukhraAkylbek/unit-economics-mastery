@@ -1,10 +1,27 @@
 import { useState } from 'react';
-import { Target, DollarSign, RefreshCw, Trash2 } from 'lucide-react';
+import { Target, DollarSign, RefreshCw, Trash2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 type TabType = 'standard' | 'unit-logic' | 'ai-audit';
+
+// Currency exchange rates - mid-market approximations
+const RATES: Record<string, Record<string, number>> = {
+  USD: { USD: 1, EUR: 0.85, RUB: 77.69, KGS: 89.00 },
+  EUR: { USD: 1.17, EUR: 1, RUB: 91.21, KGS: 104.50 },
+  RUB: { USD: 0.0129, EUR: 0.0110, RUB: 1, KGS: 1.11 },
+  KGS: { USD: 0.0112, EUR: 0.0096, RUB: 0.90, KGS: 1 }
+};
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$',
+  EUR: '€',
+  RUB: '₽',
+  KGS: 'сом'
+};
 
 export function ToolkitPage() {
   const [activeTab, setActiveTab] = useState<TabType>('unit-logic');
@@ -135,24 +152,11 @@ function StandardCalculator() {
   );
 }
 
-// Currency exchange rates
-const RATES = {
-  USD: { EUR: 0.85, RUB: 77.69, KGS: 89.00 },
-  EUR: { USD: 1.17, RUB: 91.21, KGS: 104.50 },
-  RUB: { USD: 0.0129, EUR: 0.0110, KGS: 1.11 },
-  KGS: { USD: 0.0112, EUR: 0.0096, RUB: 0.90 }
-};
-
 function UnitLogicCalculator() {
   const [cac, setCac] = useState(20);
   const [arpu, setArpu] = useState(15);
   const [churn, setChurn] = useState(10);
-  const [currency, setCurrency] = useState<'$' | '€' | '₽' | 'с'>('$');
-  
-  // Currency converter state
-  const [amount, setAmount] = useState('100');
-  const [fromCurrency, setFromCurrency] = useState<'USD' | 'EUR' | 'RUB' | 'KGS'>('USD');
-  const [showConverter, setShowConverter] = useState(false);
+  const [baseCurrency, setBaseCurrency] = useState<'USD' | 'EUR' | 'RUB' | 'KGS'>('USD');
 
   const ltv = churn > 0 ? arpu / (churn / 100) : 0;
   const ratio = cac > 0 ? ltv / cac : 0;
@@ -166,76 +170,36 @@ function UnitLogicCalculator() {
 
   const health = getHealthStatus();
   
-  const convertedAmounts = () => {
-    const val = parseFloat(amount) || 0;
-    const rates = RATES[fromCurrency];
-    return Object.entries(rates).map(([curr, rate]) => ({
+  // Convert value to all currencies
+  const convertValue = (value: number) => {
+    return Object.entries(RATES[baseCurrency]).map(([curr, rate]) => ({
       currency: curr,
-      symbol: curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'RUB' ? '₽' : 'сом',
-      value: (val * rate).toFixed(2)
+      symbol: CURRENCY_SYMBOLS[curr],
+      value: (value * rate).toFixed(curr === 'RUB' || curr === 'KGS' ? 0 : 2)
     }));
   };
+
+  const symbol = CURRENCY_SYMBOLS[baseCurrency];
 
   return (
     <div className="card-elevated p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display text-xl font-bold">UNIT CONSTRUCTOR</h2>
         <div className="flex gap-1">
-          {(['$', '€', '₽', 'с'] as const).map((c) => (
+          {(['USD', 'EUR', 'RUB', 'KGS'] as const).map((c) => (
             <button
               key={c}
-              onClick={() => setCurrency(c)}
+              onClick={() => setBaseCurrency(c)}
               className={cn(
-                'w-8 h-8 rounded-lg text-sm font-semibold transition-all',
-                currency === c ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                'px-2 h-8 rounded-lg text-xs font-semibold transition-all',
+                baseCurrency === c ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
               )}
             >
-              {c}
+              {CURRENCY_SYMBOLS[c]}
             </button>
           ))}
         </div>
       </div>
-
-      {/* Currency Converter Toggle */}
-      <button 
-        onClick={() => setShowConverter(!showConverter)}
-        className="w-full mb-4 p-3 rounded-xl bg-muted/50 text-sm font-medium text-foreground hover:bg-muted transition-all flex items-center justify-between"
-      >
-        <span>💱 Конвертер валют</span>
-        <span className="text-muted-foreground">{showConverter ? '▲' : '▼'}</span>
-      </button>
-
-      {showConverter && (
-        <div className="mb-6 p-4 rounded-xl bg-muted/30 border border-border space-y-3">
-          <div className="flex gap-2">
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-background border border-border text-foreground"
-              placeholder="Сумма"
-            />
-            <select
-              value={fromCurrency}
-              onChange={(e) => setFromCurrency(e.target.value as any)}
-              className="px-3 py-2 rounded-lg bg-background border border-border text-foreground"
-            >
-              <option value="USD">$ USD</option>
-              <option value="EUR">€ EUR</option>
-              <option value="RUB">₽ RUB</option>
-              <option value="KGS">сом KGS</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {convertedAmounts().map(({ currency: curr, symbol, value }) => (
-              <div key={curr} className="p-2 rounded-lg bg-background text-center">
-                <p className="text-xs text-muted-foreground">{curr}</p>
-                <p className="font-bold text-foreground">{symbol}{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="space-y-8">
         {/* CAC Slider */}
@@ -245,7 +209,7 @@ function UnitLogicCalculator() {
               <Target className="h-4 w-4" />
               СТОИМОСТЬ CAC
             </div>
-            <span className="text-xl font-bold">{currency}{cac}</span>
+            <span className="text-xl font-bold">{symbol}{cac}</span>
           </div>
           <Slider
             value={[cac]}
@@ -254,6 +218,14 @@ function UnitLogicCalculator() {
             step={5}
             className="w-full"
           />
+          {/* Currency conversion for CAC */}
+          <div className="flex gap-2 mt-2">
+            {convertValue(cac).filter(c => c.currency !== baseCurrency).map(({ currency, symbol: sym, value }) => (
+              <span key={currency} className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                {sym}{value}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* ARPU Slider */}
@@ -263,7 +235,7 @@ function UnitLogicCalculator() {
               <DollarSign className="h-4 w-4" />
               СРЕДНИЙ ARPU
             </div>
-            <span className="text-xl font-bold">{currency}{arpu}</span>
+            <span className="text-xl font-bold">{symbol}{arpu}</span>
           </div>
           <Slider
             value={[arpu]}
@@ -272,6 +244,14 @@ function UnitLogicCalculator() {
             step={1}
             className="w-full"
           />
+          {/* Currency conversion for ARPU */}
+          <div className="flex gap-2 mt-2">
+            {convertValue(arpu).filter(c => c.currency !== baseCurrency).map(({ currency, symbol: sym, value }) => (
+              <span key={currency} className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                {sym}{value}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Churn Slider */}
@@ -296,7 +276,14 @@ function UnitLogicCalculator() {
         <div className="grid grid-cols-2 gap-4 pt-6 border-t border-border">
           <div className="p-4 rounded-xl bg-muted">
             <div className="text-xs text-muted-foreground">LTV</div>
-            <div className="text-2xl font-bold text-foreground">{currency}{ltv.toFixed(0)}</div>
+            <div className="text-2xl font-bold text-foreground">{symbol}{ltv.toFixed(0)}</div>
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {convertValue(ltv).filter(c => c.currency !== baseCurrency).map(({ currency, symbol: sym, value }) => (
+                <span key={currency} className="text-[10px] text-muted-foreground">
+                  {sym}{value}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="p-4 rounded-xl bg-muted">
             <div className="text-xs text-muted-foreground">PAYBACK</div>
@@ -322,17 +309,46 @@ function UnitLogicCalculator() {
 function AIAuditPanel() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!input.trim()) return;
     setIsLoading(true);
-    // Simulate AI response
-    setTimeout(() => setIsLoading(false), 2000);
+    setResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-mentor', {
+        body: { 
+          projectData: { 
+            description: input,
+            projectName: 'Анализируемый проект'
+          },
+          action: 'analyze'
+        }
+      });
+
+      if (error) throw error;
+      
+      setResult(data.feedback?.replace(/\*+/g, '') || 'Анализ недоступен');
+    } catch (error: any) {
+      console.error('AI audit error:', error);
+      toast({
+        title: 'Ошибка анализа',
+        description: error.message || 'Не удалось проанализировать',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="card-elevated p-6">
-      <h2 className="font-display text-xl font-bold mb-2">AI AUDIT</h2>
+      <h2 className="font-display text-xl font-bold mb-2 flex items-center gap-2">
+        <Sparkles className="h-5 w-5 text-primary" />
+        AI AUDIT
+      </h2>
       <p className="text-sm text-muted-foreground mb-6">
         Опиши свой проект, и AI разберет его юнит-экономику
       </p>
@@ -340,7 +356,7 @@ function AIAuditPanel() {
       <textarea
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="Например: SaaS для управления проектами, подписка $29/мес, команда 3 человека..."
+        placeholder="Например: SaaS для управления проектами, подписка $29/мес, команда 3 человека, 500 пользователей, тратим $3000/мес на маркетинг..."
         className="w-full h-40 p-4 rounded-xl bg-muted border-0 text-foreground placeholder:text-muted-foreground/50 resize-none"
       />
 
@@ -358,9 +374,15 @@ function AIAuditPanel() {
         )}
       </Button>
 
-      <p className="text-xs text-muted-foreground text-center mt-4">
-        Требуется подключение Lovable Cloud для AI функций
-      </p>
+      {result && (
+        <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+          <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            AI Анализ
+          </p>
+          <p className="text-sm text-foreground whitespace-pre-line">{result}</p>
+        </div>
+      )}
     </div>
   );
 }

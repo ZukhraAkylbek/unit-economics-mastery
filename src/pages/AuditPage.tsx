@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Rocket, ExternalLink, TrendingUp, DollarSign, Users, RefreshCw, Sparkles } from 'lucide-react';
+import { Rocket, ExternalLink, TrendingUp, DollarSign, Users, RefreshCw, Sparkles, ThumbsUp, Globe, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface StartupAnalysis {
   name: string;
@@ -32,6 +33,7 @@ export function AuditPage() {
   const [isLoadingTop, setIsLoadingTop] = useState(true);
   const [analysis, setAnalysis] = useState<StartupAnalysis | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -88,6 +90,9 @@ export function AuditPage() {
     }
   };
 
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
       {/* Header */}
@@ -104,53 +109,109 @@ export function AuditPage() {
         </p>
       </div>
 
-      {/* Top Products */}
-      <div className="space-y-4">
-        <h2 className="font-display text-xl font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          Топ-3 продукта с разбором
-        </h2>
-        
-        {isLoadingTop ? (
-          <div className="grid gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="card-elevated p-6 animate-pulse">
-                <div className="h-6 bg-muted rounded w-1/3 mb-2" />
-                <div className="h-4 bg-muted rounded w-2/3 mb-4" />
-                <div className="h-20 bg-muted rounded" />
-              </div>
-            ))}
+      {/* Daily Leaderboard Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Топ продукты дня
+          </h2>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+            <Calendar className="h-4 w-4" />
+            {dateStr}
           </div>
-        ) : (
-          <div className="grid gap-4">
-            {topProducts.map((product, idx) => (
-              <div key={idx} className="card-elevated p-6">
-                <div className="flex items-start justify-between mb-4">
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadTopProducts}
+          disabled={isLoadingTop}
+        >
+          <RefreshCw className={cn("h-4 w-4 mr-2", isLoadingTop && "animate-spin")} />
+          Обновить
+        </Button>
+      </div>
+
+      {/* Top Products - Interactive Cards */}
+      {isLoadingTop ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="card-elevated p-5 animate-pulse">
+              <div className="h-6 bg-muted rounded w-2/3 mb-2" />
+              <div className="h-4 bg-muted rounded w-full mb-4" />
+              <div className="h-8 bg-muted rounded w-1/3" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {topProducts.map((product, idx) => (
+            <div 
+              key={idx} 
+              className={cn(
+                "card-elevated p-5 cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-[1.02]",
+                expandedCard === idx && "ring-2 ring-primary col-span-full lg:col-span-2"
+              )}
+              onClick={() => setExpandedCard(expandedCard === idx ? null : idx)}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold",
+                    idx === 0 ? "bg-yellow-500/20 text-yellow-500" :
+                    idx === 1 ? "bg-gray-400/20 text-gray-400" :
+                    idx === 2 ? "bg-amber-600/20 text-amber-600" :
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    #{idx + 1}
+                  </span>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-primary">#{idx + 1}</span>
-                      <h3 className="font-display text-xl font-bold text-foreground">{product.name}</h3>
-                    </div>
-                    <p className="text-muted-foreground">{product.tagline}</p>
-                    <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                    <h3 className="font-display font-bold text-foreground">{product.name}</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {product.category}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-primary">▲ {product.upvotes.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">upvotes</p>
-                  </div>
                 </div>
-                
-                <div className="p-4 rounded-xl bg-muted/50 border border-border">
-                  <p className="text-sm font-medium text-foreground mb-2">🧠 AI Анализ:</p>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">{product.analysis}</p>
+                <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10">
+                  <ThumbsUp className="h-3 w-3 text-primary" />
+                  <span className="text-sm font-bold text-primary">{product.upvotes}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                {product.tagline}
+              </p>
+              
+              {expandedCard === idx ? (
+                <div className="space-y-3 animate-fade-in">
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+                    <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      AI Анализ
+                    </p>
+                    <p className="text-sm text-foreground whitespace-pre-line">{product.analysis}</p>
+                  </div>
+                  
+                  <a
+                    href={product.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    <Globe className="h-4 w-4" />
+                    Открыть сайт
+                  </a>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Нажмите для AI анализа →
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Custom Analysis */}
       <div className="card-elevated p-6">
