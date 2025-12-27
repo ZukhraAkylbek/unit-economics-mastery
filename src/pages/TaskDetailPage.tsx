@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MODULES, CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useProgress } from '@/hooks/useProgress';
+import { getQuestionsByModule } from '@/lib/quizData';
 
 type Step = 'theory' | 'formula' | 'example' | 'quiz' | 'flashcard' | 'task';
 
@@ -20,87 +21,7 @@ const STEPS: { id: Step; label: string; icon: React.ElementType }[] = [
   { id: 'task', label: 'Задача', icon: Target },
 ];
 
-// Quiz questions per module
-const MODULE_QUIZZES: Record<string, { question: string; options: string[]; correctIndex: number; explanation: string }[]> = {
-  'unit-margin': [
-    {
-      question: 'Что такое COGS?',
-      options: ['Прибыль с продажи', 'Себестоимость товара', 'Стоимость привлечения', 'Маржа'],
-      correctIndex: 1,
-      explanation: 'COGS (Cost of Goods Sold) — прямые расходы на производство или оказание услуги'
-    },
-    {
-      question: 'Если маржа отрицательная, это значит:',
-      options: ['Бизнес прибыльный', 'Каждая продажа убыточна', 'Нужно больше клиентов', 'Всё в порядке'],
-      correctIndex: 1,
-      explanation: 'Отрицательная маржа означает, что вы теряете деньги на каждой продаже'
-    }
-  ],
-  'cac': [
-    {
-      question: 'CAC учитывает:',
-      options: ['Только рекламу', 'Все затраты на привлечение', 'Только зарплаты', 'Себестоимость'],
-      correctIndex: 1,
-      explanation: 'CAC включает все расходы: рекламу, зарплаты маркетологов, инструменты, комиссии'
-    },
-    {
-      question: 'Если CAC = 5000₽, а ARPU = 1000₽, сколько месяцев до окупаемости?',
-      options: ['1 месяц', '5 месяцев', '50 месяцев', 'Невозможно посчитать'],
-      correctIndex: 1,
-      explanation: 'Payback = CAC / ARPU = 5000 / 1000 = 5 месяцев'
-    }
-  ],
-  'ltv': [
-    {
-      question: 'LTV показывает:',
-      options: ['Стоимость привлечения', 'Сколько денег принесёт клиент за всё время', 'Месячную выручку', 'Процент оттока'],
-      correctIndex: 1,
-      explanation: 'LTV (Lifetime Value) — пожизненная ценность клиента'
-    },
-    {
-      question: 'При Churn 10% в месяц, какой средний срок жизни клиента?',
-      options: ['1 месяц', '10 месяцев', '100 месяцев', '5 месяцев'],
-      correctIndex: 1,
-      explanation: 'Avg. Lifetime = 1 / Churn = 1 / 0.10 = 10 месяцев'
-    }
-  ],
-  'ltv-cac-ratio': [
-    {
-      question: 'Какое минимальное LTV/CAC считается здоровым?',
-      options: ['1:1', '2:1', '3:1', '10:1'],
-      correctIndex: 2,
-      explanation: 'LTV/CAC ≥ 3 — золотой стандарт здоровой экономики'
-    },
-    {
-      question: 'LTV/CAC = 1 означает:',
-      options: ['Отличный результат', 'Вы в нуле', 'Убытки', 'Нужно масштабировать'],
-      correctIndex: 1,
-      explanation: 'При ratio 1:1 вы только окупаете затраты на привлечение, без прибыли'
-    }
-  ],
-  'churn': [
-    {
-      question: 'Churn Rate измеряет:',
-      options: ['Процент новых клиентов', 'Процент ушедших клиентов', 'Выручку', 'Конверсию'],
-      correctIndex: 1,
-      explanation: 'Churn Rate — доля клиентов, которые перестали платить за период'
-    },
-    {
-      question: 'Снижение Churn на 1% может увеличить LTV на:',
-      options: ['1%', '5%', '10-30%', '100%'],
-      correctIndex: 2,
-      explanation: 'Удержание клиентов — один из самых мощных рычагов роста LTV'
-    }
-  ],
-  'arpu': [
-    {
-      question: 'ARPU — это:',
-      options: ['Средний доход на пользователя', 'Количество пользователей', 'Стоимость привлечения', 'Процент оттока'],
-      correctIndex: 0,
-      explanation: 'ARPU = Average Revenue Per User — средний доход на пользователя'
-    }
-  ]
-};
+// Get quiz questions from quizData.ts based on module slug
 
 // Flashcards per module
 const MODULE_FLASHCARDS: Record<string, { front: string; back: string; formula?: string }[]> = {
@@ -189,7 +110,7 @@ export function TaskDetailPage({ userTelegram }: TaskDetailPageProps) {
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const progress = ((currentStepIndex + 1) / STEPS.length) * 100;
 
-  const quizzes = MODULE_QUIZZES[slug || ''] || [];
+  const quizzes = slug ? getQuestionsByModule(slug) : [];
   const flashcards = MODULE_FLASHCARDS[slug || ''] || [];
   const currentQuiz = quizzes[quizIndex];
   const currentFlashcard = flashcards[flashcardIndex];
