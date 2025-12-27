@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { STUDENTS } from '@/lib/constants';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoginPageProps {
-  onLogin: (user: { name: string; telegram: string }) => void;
+  onLogin: (user: { name: string; telegram: string; isAdmin: boolean }) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -17,17 +17,43 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleCheckAccess = () => {
+  const handleCheckAccess = async () => {
     setIsLoading(true);
     
-    setTimeout(() => {
-      const normalizedTelegram = telegram.startsWith('@') ? telegram : `@${telegram}`;
-      const student = STUDENTS.find(
-        (s) => s.telegram.toLowerCase() === normalizedTelegram.toLowerCase()
-      );
+    try {
+      // Normalize telegram handle
+      const normalizedTelegram = telegram.startsWith('@') 
+        ? telegram.slice(1) 
+        : telegram;
 
-      if (student || telegram.toLowerCase() === 'demo') {
-        onLogin({ name: name || 'Студент', telegram: normalizedTelegram });
+      // Check if student exists in database
+      const { data: student, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('telegram', normalizedTelegram)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // Also check for demo access
+      if (student || normalizedTelegram.toLowerCase() === 'demo') {
+        // Check if admin
+        let isAdmin = false;
+        if (student) {
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('student_id', student.id);
+          
+          isAdmin = roles?.some(r => r.role === 'admin') || false;
+        }
+
+        onLogin({ 
+          name: student?.name || name || 'Студент', 
+          telegram: `@${normalizedTelegram}`,
+          isAdmin
+        });
+        
         toast({
           title: 'Добро пожаловать!',
           description: 'Доступ подтвержден.',
@@ -40,8 +66,16 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           variant: 'destructive',
         });
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось проверить доступ',
+        variant: 'destructive',
+      });
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -49,8 +83,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-10 opacity-0 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-6">
-            <Sparkles className="w-8 h-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-6 overflow-hidden">
+            <img src="/logo.png" alt="MVP Studio" className="w-full h-full object-cover" />
           </div>
           <h1 className="font-display text-3xl font-bold text-foreground mb-2">
             MVP Studio

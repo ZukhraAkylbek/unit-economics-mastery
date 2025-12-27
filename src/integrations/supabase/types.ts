@@ -14,16 +14,175 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      personal_projects: {
+        Row: {
+          ai_feedback: string | null
+          arpu: number | null
+          cac: number | null
+          churn_rate: number | null
+          cogs: number | null
+          created_at: string
+          customers: number | null
+          description: string | null
+          id: string
+          marketing_cost: number | null
+          price: number | null
+          project_name: string
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          ai_feedback?: string | null
+          arpu?: number | null
+          cac?: number | null
+          churn_rate?: number | null
+          cogs?: number | null
+          created_at?: string
+          customers?: number | null
+          description?: string | null
+          id?: string
+          marketing_cost?: number | null
+          price?: number | null
+          project_name: string
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          ai_feedback?: string | null
+          arpu?: number | null
+          cac?: number | null
+          churn_rate?: number | null
+          cogs?: number | null
+          created_at?: string
+          customers?: number | null
+          description?: string | null
+          id?: string
+          marketing_cost?: number | null
+          price?: number | null
+          project_name?: string
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_projects_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      progress: {
+        Row: {
+          coins_earned: number
+          completed: boolean
+          created_at: string
+          id: string
+          module_id: string
+          step_completed: number
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          coins_earned?: number
+          completed?: boolean
+          created_at?: string
+          id?: string
+          module_id: string
+          step_completed?: number
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          coins_earned?: number
+          completed?: boolean
+          created_at?: string
+          id?: string
+          module_id?: string
+          step_completed?: number
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          coins: number
+          created_at: string
+          id: string
+          name: string
+          telegram: string
+          updated_at: string
+        }
+        Insert: {
+          coins?: number
+          created_at?: string
+          id?: string
+          name: string
+          telegram: string
+          updated_at?: string
+        }
+        Update: {
+          coins?: number
+          created_at?: string
+          id?: string
+          name?: string
+          telegram?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          student_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          student_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _telegram: string
+        }
+        Returns: boolean
+      }
+      is_student: { Args: { _telegram: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "student"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +309,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "student"],
+    },
   },
 } as const

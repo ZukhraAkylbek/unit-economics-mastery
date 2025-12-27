@@ -16,6 +16,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { QuizPage } from "./pages/QuizPage";
 import { FlashcardsPage } from "./pages/FlashcardsPage";
 import { PersonalTasksPage } from "./pages/PersonalTasksPage";
+import { AdminPage } from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const queryClient = new QueryClient();
 interface User {
   name: string;
   telegram: string;
+  isAdmin?: boolean;
 }
 
 const App = () => {
@@ -82,6 +84,11 @@ const App = () => {
               <Route path="/quiz" element={<QuizPage />} />
               <Route path="/flashcards" element={<FlashcardsPage />} />
               <Route path="/personal" element={<PersonalTasksPage />} />
+              {/* Admin Route */}
+              <Route 
+                path="/admin" 
+                element={user?.isAdmin ? <AdminPage /> : <Navigate to="/office" replace />} 
+              />
             </Route>
 
             {/* 404 */}
