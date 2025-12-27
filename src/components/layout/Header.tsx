@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, LogOut, Sparkles } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
@@ -16,9 +16,11 @@ export function Header({ user, onLogout }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-xl border-b border-border/50">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/office" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="MVP Studio" 
+            className="h-10 w-10 rounded-xl object-cover"
+          />
           <div className="hidden sm:block">
             <div className="font-display font-bold text-foreground text-lg">
               MVP Studio
