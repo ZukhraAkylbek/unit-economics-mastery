@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
+import { AdminLayout } from "./components/layout/AdminLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { OfficePage } from "./pages/OfficePage";
 import { TasksPage } from "./pages/TasksPage";
@@ -16,7 +17,10 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { QuizPage } from "./pages/QuizPage";
 import { FlashcardsPage } from "./pages/FlashcardsPage";
 import { PersonalTasksPage } from "./pages/PersonalTasksPage";
-import { AdminPage } from "./pages/AdminPage";
+import { AdminStudentsPage } from "./pages/admin/AdminStudentsPage";
+import { AdminProgressPage } from "./pages/admin/AdminProgressPage";
+import { AdminContentPage } from "./pages/admin/AdminContentPage";
+import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,14 +64,34 @@ const App = () => {
             <Route
               path="/"
               element={
-                user ? <Navigate to="/office" replace /> : <LoginPage onLogin={handleLogin} />
+                user ? (
+                  user.isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/office" replace />
+                ) : (
+                  <LoginPage onLogin={handleLogin} />
+                )
               }
             />
 
-            {/* Protected Routes */}
+            {/* Admin Routes */}
             <Route
               element={
-                user ? (
+                user?.isAdmin ? (
+                  <AdminLayout user={user} onLogout={handleLogout} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            >
+              <Route path="/admin" element={<AdminStudentsPage />} />
+              <Route path="/admin/progress" element={<AdminProgressPage />} />
+              <Route path="/admin/content" element={<AdminContentPage />} />
+              <Route path="/admin/settings" element={<AdminSettingsPage />} />
+            </Route>
+
+            {/* Student Routes */}
+            <Route
+              element={
+                user && !user.isAdmin ? (
                   <AppLayout user={user} onLogout={handleLogout} />
                 ) : (
                   <Navigate to="/" replace />
@@ -84,11 +108,6 @@ const App = () => {
               <Route path="/quiz" element={<QuizPage />} />
               <Route path="/flashcards" element={<FlashcardsPage />} />
               <Route path="/personal" element={<PersonalTasksPage />} />
-              {/* Admin Route */}
-              <Route 
-                path="/admin" 
-                element={user?.isAdmin ? <AdminPage /> : <Navigate to="/office" replace />} 
-              />
             </Route>
 
             {/* 404 */}
