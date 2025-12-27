@@ -551,8 +551,18 @@ CAC нужно считать по каналам!`,
 ];
 
 export const STUDENTS = [
-  { id: 1, name: 'Zuhra', telegram: '@Zuhra_akylbek', status: 'online', xp: 0, rank: 'Growth PM' },
-  { id: 2, name: 'Артем', telegram: '@artem_pm', status: 'offline', xp: 150, rank: 'Junior PM' },
-  { id: 3, name: 'Мария', telegram: '@maria_k', status: 'online', xp: 320, rank: 'Middle PM' },
-  { id: 4, name: 'Данил', telegram: '@danil_dev', status: 'offline', xp: 80, rank: 'Intern' },
+  { id: 1, name: 'Дарика', telegram: '@darikaom' },
+  { id: 2, name: 'Данияр', telegram: '@Daniyar_Aitykeev' },
+  { id: 3, name: 'Алина', telegram: '@agafarova' },
+  { id: 4, name: 'Лола', telegram: '@lola_trelevskaia' },
+  { id: 5, name: 'Диана', telegram: '@di_orozbaeva' },
+  { id: 6, name: 'Меерим', telegram: '@meerimbatt' },
+  { id: 7, name: 'Амай', telegram: '@amai8881' },
+  { id: 8, name: 'Chopalate', telegram: '@chopalate' },
+  { id: 9, name: 'Acme', telegram: '@acme_df' },
+  { id: 10, name: 'Айжан', telegram: '@aizhan' },
+  { id: 11, name: 'Дамира', telegram: '@damiraturganbai' },
+  { id: 12, name: 'Beeemd', telegram: '@beeemd' },
+  { id: 13, name: 'Zuhra', telegram: '@Zuhra_akylbek' },
+  { id: 14, name: 'Администратор', telegram: '@admin' },
 ];

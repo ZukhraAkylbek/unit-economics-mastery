@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Sparkles, Save, Trash2, Plus, ChevronRight } from 'lucide-react';
+import { Briefcase, Sparkles, Save, Trash2, Plus, ChevronRight, Bot, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectData {
   name: string;
   description: string;
   price: string;
   cogs: string;
+  cac: string;
   marketingBudget: string;
   customersPerMonth: string;
   churnRate: string;
+  arpu: string;
 }
 
 interface SavedExample {
@@ -40,9 +44,11 @@ export function PersonalTasksPage() {
       description: '',
       price: '',
       cogs: '',
+      cac: '',
       marketingBudget: '',
       customersPerMonth: '',
-      churnRate: ''
+      churnRate: '',
+      arpu: ''
     };
   });
 
@@ -53,6 +59,9 @@ export function PersonalTasksPage() {
 
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     localStorage.setItem('mvp-studio-project', JSON.stringify(project));
@@ -68,6 +77,7 @@ export function PersonalTasksPage() {
     const marketing = parseFloat(project.marketingBudget) || 0;
     const customers = parseFloat(project.customersPerMonth) || 1;
     const churn = parseFloat(project.churnRate) || 5;
+    const arpu = parseFloat(project.arpu) || price;
 
     switch (metricId) {
       case 'unit-margin':
@@ -82,14 +92,14 @@ export function PersonalTasksPage() {
           explanation: `Стоимость привлечения клиента: ${marketing.toLocaleString()}₽ / ${customers} = ${Math.round(cac).toLocaleString()}₽`
         };
       case 'ltv':
-        const ltv = price / (churn / 100);
+        const ltv = arpu / (churn / 100);
         return {
           value: `${Math.round(ltv).toLocaleString()}₽`,
-          explanation: `LTV при ARPU ${price}₽ и Churn ${churn}%: ${price}₽ / ${churn/100} = ${Math.round(ltv).toLocaleString()}₽`
+          explanation: `LTV при ARPU ${arpu}₽ и Churn ${churn}%: ${arpu}₽ / ${churn/100} = ${Math.round(ltv).toLocaleString()}₽`
         };
       case 'ratio':
         const cacVal = marketing / customers;
-        const ltvVal = price / (churn / 100);
+        const ltvVal = arpu / (churn / 100);
         const ratio = ltvVal / cacVal;
         return {
           value: `${ratio.toFixed(2)}x`,
@@ -97,10 +107,10 @@ export function PersonalTasksPage() {
         };
       case 'payback':
         const cacP = marketing / customers;
-        const payback = cacP / price;
+        const payback = cacP / arpu;
         return {
           value: `${payback.toFixed(1)} мес`,
-          explanation: `Payback = ${Math.round(cacP).toLocaleString()}₽ / ${price}₽ = ${payback.toFixed(1)} месяцев`
+          explanation: `Payback = ${Math.round(cacP).toLocaleString()}₽ / ${arpu}₽ = ${payback.toFixed(1)} месяцев`
         };
       default:
         return null;
@@ -121,10 +131,53 @@ export function PersonalTasksPage() {
       explanation: result.explanation,
       createdAt: new Date()
     }]);
+    
+    toast({ title: 'Пример сохранён' });
   };
 
   const handleDeleteExample = (id: string) => {
     setSavedExamples(prev => prev.filter(e => e.id !== id));
+  };
+
+  const handleGetAIFeedback = async () => {
+    if (!project.name) {
+      toast({ title: 'Заполните данные проекта', variant: 'destructive' });
+      return;
+    }
+
+    setIsLoadingAI(true);
+    setAiFeedback(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-mentor', {
+        body: {
+          projectData: {
+            projectName: project.name,
+            description: project.description,
+            price: project.price,
+            cogs: project.cogs,
+            cac: project.cac,
+            marketingCost: project.marketingBudget,
+            customers: project.customersPerMonth,
+            churnRate: project.churnRate,
+            arpu: project.arpu
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      setAiFeedback(data.feedback);
+    } catch (error: any) {
+      console.error('AI feedback error:', error);
+      toast({
+        title: 'Ошибка',
+        description: error.message || 'Не удалось получить анализ',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   const hasProjectData = project.name && project.price;
@@ -135,10 +188,10 @@ export function PersonalTasksPage() {
       <div className="opacity-0 animate-fade-in">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-xs font-semibold text-primary mb-4">
           <Briefcase className="h-3 w-3" />
-          ПЕРСОНАЛЬНЫЕ ЗАДАНИЯ
+          МОЙ ПРОЕКТ
         </div>
-        <h1 className="heading-lg text-foreground">Твой проект</h1>
-        <p className="text-muted-foreground">Введи данные проекта — получай персональные примеры расчётов</p>
+        <h1 className="heading-lg text-foreground">Персональные задания</h1>
+        <p className="text-muted-foreground">Введи данные проекта — получай персональные примеры и AI-рекомендации</p>
       </div>
 
       {/* Project Form */}
@@ -175,7 +228,7 @@ export function PersonalTasksPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Цена (ARPU), ₽</label>
+                <label className="text-sm text-muted-foreground mb-1 block">Цена продукта, ₽</label>
                 <Input
                   type="number"
                   placeholder="2000"
@@ -190,6 +243,26 @@ export function PersonalTasksPage() {
                   placeholder="400"
                   value={project.cogs}
                   onChange={(e) => setProject(p => ({ ...p, cogs: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">CAC (стоимость привлечения), ₽</label>
+                <Input
+                  type="number"
+                  placeholder="1500"
+                  value={project.cac}
+                  onChange={(e) => setProject(p => ({ ...p, cac: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">ARPU (средний чек), ₽</label>
+                <Input
+                  type="number"
+                  placeholder="2000"
+                  value={project.arpu}
+                  onChange={(e) => setProject(p => ({ ...p, arpu: e.target.value }))}
                 />
               </div>
             </div>
@@ -236,19 +309,19 @@ export function PersonalTasksPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border">
               <div className="text-center">
-                <p className="text-lg font-bold text-primary">{parseInt(project.price).toLocaleString()}₽</p>
+                <p className="text-lg font-bold text-primary">{parseInt(project.price || '0').toLocaleString()}₽</p>
                 <p className="text-xs text-muted-foreground">Цена</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{parseInt(project.cogs).toLocaleString()}₽</p>
+                <p className="text-lg font-bold text-foreground">{parseInt(project.cogs || '0').toLocaleString()}₽</p>
                 <p className="text-xs text-muted-foreground">COGS</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{parseInt(project.marketingBudget).toLocaleString()}₽</p>
+                <p className="text-lg font-bold text-foreground">{parseInt(project.marketingBudget || '0').toLocaleString()}₽</p>
                 <p className="text-xs text-muted-foreground">Маркетинг</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-bold text-foreground">{project.churnRate}%</p>
+                <p className="text-lg font-bold text-foreground">{project.churnRate || '0'}%</p>
                 <p className="text-xs text-muted-foreground">Churn</p>
               </div>
             </div>
@@ -265,9 +338,44 @@ export function PersonalTasksPage() {
         )}
       </div>
 
+      {/* AI Mentor */}
+      {hasProjectData && (
+        <div className="card-elevated p-6 opacity-0 animate-fade-in stagger-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-bold text-foreground flex items-center gap-2">
+              <Bot className="h-5 w-5 text-primary" />
+              AI Ментор
+            </h3>
+            <Button onClick={handleGetAIFeedback} disabled={isLoadingAI}>
+              {isLoadingAI ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Анализирую...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Получить рекомендации
+                </>
+              )}
+            </Button>
+          </div>
+
+          {aiFeedback ? (
+            <div className="p-4 rounded-xl bg-muted/50 border border-border">
+              <p className="text-sm text-foreground whitespace-pre-line">{aiFeedback}</p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              AI-ментор проанализирует данные вашего проекта и даст рекомендации по улучшению юнит-экономики
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Calculate Metrics */}
       {hasProjectData && (
-        <div className="space-y-4 opacity-0 animate-fade-in stagger-2">
+        <div className="space-y-4 opacity-0 animate-fade-in stagger-3">
           <h3 className="font-display font-bold text-foreground flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Расчёты для {project.name}
@@ -327,7 +435,7 @@ export function PersonalTasksPage() {
 
       {/* Saved Examples */}
       {savedExamples.length > 0 && (
-        <div className="space-y-4 opacity-0 animate-fade-in stagger-3">
+        <div className="space-y-4 opacity-0 animate-fade-in stagger-4">
           <h3 className="font-display font-bold text-foreground">Сохранённые примеры</h3>
           
           <div className="space-y-3">

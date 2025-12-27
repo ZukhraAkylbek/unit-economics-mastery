@@ -1,1 +1,7 @@
 project_id = "atyuzsjkwxyyetslywbl"
+
+[functions.ai-mentor]
+verify_jwt = false
+
+[functions.ph-audit]
+verify_jwt = false
