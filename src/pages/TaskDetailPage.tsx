@@ -9,6 +9,7 @@ import { MODULES, CATEGORIES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useProgress } from '@/hooks/useProgress';
 import { getQuestionsByModule } from '@/lib/quizData';
+import { getFlashcardsByModule } from '@/lib/flashcardsData';
 
 type Step = 'theory' | 'formula' | 'example' | 'quiz' | 'flashcard' | 'task';
 
@@ -21,36 +22,7 @@ const STEPS: { id: Step; label: string; icon: React.ElementType }[] = [
   { id: 'task', label: 'Задача', icon: Target },
 ];
 
-// Get quiz questions from quizData.ts based on module slug
-
-// Flashcards per module
-const MODULE_FLASHCARDS: Record<string, { front: string; back: string; formula?: string }[]> = {
-  'unit-margin': [
-    { front: 'Unit Margin', back: 'Прибыль с одной продажи после вычета прямых расходов', formula: 'Price - COGS' },
-    { front: 'COGS', back: 'Cost of Goods Sold — себестоимость проданных товаров или услуг' },
-    { front: 'Юнит', back: 'Базовая единица бизнеса: подписчик, заказ, чашка кофе' }
-  ],
-  'cac': [
-    { front: 'CAC', back: 'Customer Acquisition Cost — стоимость привлечения клиента', formula: 'Marketing / Customers' },
-    { front: 'CPA', back: 'Cost Per Acquisition — стоимость действия (регистрации, покупки)' }
-  ],
-  'ltv': [
-    { front: 'LTV', back: 'Lifetime Value — пожизненная ценность клиента', formula: 'ARPU / Churn' },
-    { front: 'Avg. Lifetime', back: 'Средний срок жизни клиента в месяцах', formula: '1 / Churn Rate' }
-  ],
-  'ltv-cac-ratio': [
-    { front: 'LTV/CAC', back: 'Главная метрика здоровья бизнеса. Должно быть ≥ 3', formula: 'LTV ÷ CAC' },
-    { front: 'Здоровый Ratio', back: '3-5x оптимально. < 3 — риск, > 5 — недоинвестируете в рост' }
-  ],
-  'churn': [
-    { front: 'Churn Rate', back: 'Процент клиентов, которые уходят за период', formula: 'Lost / Total × 100%' },
-    { front: 'Retention', back: 'Обратная сторона Churn — процент оставшихся', formula: '100% - Churn' }
-  ],
-  'arpu': [
-    { front: 'ARPU', back: 'Average Revenue Per User — средний доход на пользователя', formula: 'Revenue / Users' },
-    { front: 'ARPPU', back: 'Average Revenue Per Paying User — только по платящим', formula: 'Revenue / Paying Users' }
-  ]
-};
+// Get quiz questions from quizData.ts and flashcards from flashcardsData.ts
 
 interface TaskDetailPageProps {
   userTelegram?: string;
@@ -111,7 +83,7 @@ export function TaskDetailPage({ userTelegram }: TaskDetailPageProps) {
   const progress = ((currentStepIndex + 1) / STEPS.length) * 100;
 
   const quizzes = slug ? getQuestionsByModule(slug) : [];
-  const flashcards = MODULE_FLASHCARDS[slug || ''] || [];
+  const flashcards = slug ? getFlashcardsByModule(slug) : [];
   const currentQuiz = quizzes[quizIndex];
   const currentFlashcard = flashcards[flashcardIndex];
 
